@@ -6,24 +6,17 @@ using MvcMovie.Models;
 
 namespace MvcMovie.Controllers;
 
-public class MoviesController : Controller
+public class MoviesController(MvcMovieContext context) : Controller
 {
-    private readonly MvcMovieContext _context;
-
-    public MoviesController(MvcMovieContext context)
-    {
-        _context = context;
-    }
-
     // GET: Movies
     // GET: Movies
     public async Task<IActionResult> Index(string movieGenre, string searchString)
     {
         // Use LINQ to get list of genres.
-        IQueryable<string> genreQuery = from m in _context.Movie
+        IQueryable<string> genreQuery = from m in context.Movie
             orderby m.Genre
             select m.Genre;
-        var movies = from m in _context.Movie
+        var movies = from m in context.Movie
             select m;
 
         if (!string.IsNullOrEmpty(searchString)) movies = movies.Where(s => s.Title!.Contains(searchString));
@@ -50,7 +43,7 @@ public class MoviesController : Controller
     {
         if (id == null) return NotFound();
 
-        var movie = await _context.Movie
+        var movie = await context.Movie
             .FirstOrDefaultAsync(m => m.Id == id);
         if (movie == null) return NotFound();
 
@@ -72,8 +65,8 @@ public class MoviesController : Controller
     {
         if (ModelState.IsValid)
         {
-            _context.Add(movie);
-            await _context.SaveChangesAsync();
+            context.Add(movie);
+            await context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }
 
@@ -85,7 +78,7 @@ public class MoviesController : Controller
     {
         if (id == null) return NotFound();
 
-        var movie = await _context.Movie.FindAsync(id);
+        var movie = await context.Movie.FindAsync(id);
         if (movie == null) return NotFound();
         return View(movie);
     }
@@ -99,24 +92,20 @@ public class MoviesController : Controller
     {
         if (id != movie.Id) return NotFound();
 
-        if (ModelState.IsValid)
+        if (!ModelState.IsValid) return View(movie);
+        try
         {
-            try
-            {
-                _context.Update(movie);
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!MovieExists(movie.Id))
-                    return NotFound();
-                throw;
-            }
-
-            return RedirectToAction(nameof(Index));
+            context.Update(movie);
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!MovieExists(movie.Id))
+                return NotFound();
+            throw;
         }
 
-        return View(movie);
+        return RedirectToAction(nameof(Index));
     }
 
     // GET: Movies/Delete/5
@@ -124,7 +113,7 @@ public class MoviesController : Controller
     {
         if (id == null) return NotFound();
 
-        var movie = await _context.Movie
+        var movie = await context.Movie
             .FirstOrDefaultAsync(m => m.Id == id);
         if (movie == null) return NotFound();
 
@@ -136,15 +125,15 @@ public class MoviesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
-        var movie = await _context.Movie.FindAsync(id);
-        if (movie != null) _context.Movie.Remove(movie);
+        var movie = await context.Movie.FindAsync(id);
+        if (movie != null) context.Movie.Remove(movie);
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
         return RedirectToAction(nameof(Index));
     }
 
     private bool MovieExists(int id)
     {
-        return _context.Movie.Any(e => e.Id == id);
+        return context.Movie.Any(e => e.Id == id);
     }
 }
